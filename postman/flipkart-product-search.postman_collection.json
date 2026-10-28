@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "Flipkart Product Search",
+    "description": "Product write API, Elasticsearch search API, and actuator/observability endpoints. Set the collection variable baseUrl (default http://localhost:8085).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8085" },
+    { "key": "productId", "value": "" },
+    { "key": "sku", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create product",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('sku', 'PM-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns productId', () => pm.expect(body.productId).to.be.a('number'));",
+                  "pm.collectionVariables.set('productId', body.productId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Apple iPhone 15 128GB\",\n  \"description\": \"Latest iPhone with A16 chip\",\n  \"category\": \"Mobiles\",\n  \"price\": 69999.00,\n  \"stockQuantity\": 25,\n  \"sku\": \"{{sku}}\",\n  \"active\": \"Y\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api", "products"] }
+          }
+        },
+        {
+          "name": "Update product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('message present', () => pm.expect(pm.response.json().message).to.include('updated'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Apple iPhone 15 256GB\",\n  \"description\": \"Updated description\",\n  \"category\": \"Mobiles\",\n  \"price\": 74999.00,\n  \"stockQuantity\": 40,\n  \"sku\": \"{{sku}}\",\n  \"active\": \"Y\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api", "products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "Create product - duplicate SKU (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('ErrorResponse shape', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b).to.have.keys('timestamp','status','error','message','path','validationErrors');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Duplicate SKU product\",\n  \"category\": \"Mobiles\",\n  \"price\": 100.00,\n  \"sku\": \"{{sku}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api", "products"] }
+          }
+        },
+        {
+          "name": "Create product - invalid (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"\",\n  \"price\": -5,\n  \"sku\": \"\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api", "products"] }
+          }
+        },
+        {
+          "name": "Update product - not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Ghost product\",\n  \"category\": \"Mobiles\",\n  \"price\": 100.00,\n  \"sku\": \"GHOST-SKU\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products/999999999", "host": ["{{baseUrl}}"], "path": ["api", "products", "999999999"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('paged response', () => {",
+                  "  pm.expect(b).to.have.keys('products','totalElements','page','size','totalPages');",
+                  "  pm.expect(b.products).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/search?q=iphone&category=Mobiles&minPrice=1000&maxPrice=100000&activeOnly=true&sortBy=price&sortDirection=asc&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "search"],
+              "query": [
+                { "key": "q", "value": "iphone" },
+                { "key": "category", "value": "Mobiles" },
+                { "key": "minPrice", "value": "1000" },
+                { "key": "maxPrice", "value": "100000" },
+                { "key": "activeOnly", "value": "true" },
+                { "key": "sortBy", "value": "price", "description": "relevance | price" },
+                { "key": "sortDirection", "value": "asc", "description": "asc | desc" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search products - relevance only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/search?q=iphon",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "search"],
+              "query": [{ "key": "q", "value": "iphon", "description": "typo on purpose - fuzzy matching" }]
+            }
+          }
+        },
+        {
+          "name": "Fuzzy search by name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/fuzzy?q=iphne",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "fuzzy"],
+              "query": [{ "key": "q", "value": "iphne" }]
+            }
+          }
+        },
+        {
+          "name": "Search - blank query (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/search?q=%20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "search"],
+              "query": [{ "key": "q", "value": "%20" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Observability & Docs",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] } }
+        },
+        {
+          "name": "Liveness probe",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/health/liveness", "host": ["{{baseUrl}}"], "path": ["actuator", "health", "liveness"] } }
+        },
+        {
+          "name": "Readiness probe",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/health/readiness", "host": ["{{baseUrl}}"], "path": ["actuator", "health", "readiness"] } }
+        },
+        {
+          "name": "Prometheus metrics",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/prometheus", "host": ["{{baseUrl}}"], "path": ["actuator", "prometheus"] } }
+        },
+        {
+          "name": "Metrics list",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/metrics", "host": ["{{baseUrl}}"], "path": ["actuator", "metrics"] } }
+        },
+        {
+          "name": "Outbox published counter",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/metrics/outbox.events.published", "host": ["{{baseUrl}}"], "path": ["actuator", "metrics", "outbox.events.published"] } }
+        },
+        {
+          "name": "OpenAPI JSON",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/v3/api-docs", "host": ["{{baseUrl}}"], "path": ["v3", "api-docs"] } }
+        }
+      ]
+    }
+  ]
+}
